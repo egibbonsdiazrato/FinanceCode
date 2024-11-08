@@ -63,20 +63,18 @@ class DerivativeBTM:
         self.stock_tree = None
         self.deriv_tree = None
         self.hedge_tree = None
-        self.bond_tree = None
+        self.borrow_tree = None
 
     def _verbose_header(self) -> None:
         """
-        Prints a header to the console if then verbose flag is active.
+        Prints a header to the console.
         """
-        # Verbose prints
-        if self.verbose:
-            print()
-            print(f'{"Binomial Tree Model Instance":=^80}')
-            if self.payoff_func_desc is not None:
-                print(f'{self.payoff_func_desc}')
-                print(f'This is modelled with initial stock price of S_0 = {self.S_0} and a maturity of '
-                      f'T = {self.T} \n timesteps')
+        print()
+        print(f'{"Binomial Tree Model Instance":=^80}')
+        if self.payoff_func_desc is not None:
+            print(f'{self.payoff_func_desc}')
+            print(f'This is modelled with initial stock price of S_0 = {self.S_0} and a maturity of '
+                  f'T = {self.T} \n timesteps')
     
     def _calc_up_stock_price(self, S_now: np.floating) -> int | float:
         """
@@ -129,13 +127,14 @@ class DerivativeBTM:
         # Generate the up and down values for each timestep by looking at non-zero values in the previous timestep
         for t in range(1, self.T):
             # Indices for which there are prices in the previous timesteps
-            inds_prices = np.where(~np.isnan(stock_tree[:, t - 1]))[0]
+            inds = np.where(~np.isnan(stock_tree[:, t - 1]))[0]
 
             # Generate an up and down price for each non-zero price of the previous timestep
-            for ind_price in inds_prices:
-                S_now = stock_tree[ind_price, t - 1]
-                stock_tree[ind_price - 1, t] = self._calc_up_stock_price(S_now)  # Up move
-                stock_tree[ind_price + 1, t] = self._calc_down_stock_price(S_now)  # Down move
+            for ind_now in inds:
+                S_now = stock_tree[ind_now, t - 1]
+                ind_up, ind_down = ind_now - 1, ind_now + 1  # Note up and down refers to stock price move
+                stock_tree[ind_up, t] = self._calc_up_stock_price(S_now)  # Up move
+                stock_tree[ind_down, t] = self._calc_down_stock_price(S_now)  # Down move
 
         # Save as attributes
         self.stock_tree = stock_tree
@@ -161,17 +160,27 @@ class DerivativeBTM:
         deriv_tree[:, -1] = deriv_payoff_mat
 
         # Compute backpropagation
-        t_backprop_steps = np.arange(1, self.T)[::-1]
+        t_backprop_steps = np.arange(1, self.T)[::-1]  # Reversed array
         for t in t_backprop_steps:
             # Indices for which there are prices in the previous timesteps.
-            inds_prices = np.where(~np.isnan(deriv_tree[:, t]))[0]
+            inds = np.where(~np.isnan(deriv_tree[:, t]))[0]
 
-            # Generate the backpropagation by looking at paris of indices
-            for ind_price_top, ind_price_bot in zip(inds_prices[1:], inds_prices[:-1]):
-                ind_price_backprop = int((ind_price_bot + ind_price_top)/2)
-                # Get value
-                deriv_tree[ind_price_backprop, t - 1] = 0.5*(deriv_tree[ind_price_bot, t]
-                                                             + deriv_tree[ind_price_top, t])
+            # Generate the backpropagation by looking at pairs of indices
+            for ind_up, ind_down in zip(inds[:-1], inds[1:]):
+                # The row below of up ind (equivalent to above the down ind) is that of the previous timestep
+                ind_now = ind_up + 1
+
+                # Calculate q probabilities
+                q_num = self.stock_tree[ind_now, t - 1] - self.stock_tree[ind_down, t]
+                q_denom = self.stock_tree[ind_up, t] - self.stock_tree[ind_down, t]
+                q = q_num / q_denom
+
+                # Get derivative up and down values and calculate derivative now value
+                deriv_up = deriv_tree[ind_up, t]
+                deriv_down = deriv_tree[ind_down, t]
+                deriv_now = q*deriv_up + (1 - q)*deriv_down
+
+                deriv_tree[ind_now, t - 1] = deriv_now
 
         # Save as attributes
         self.deriv_tree = deriv_tree
@@ -191,18 +200,23 @@ class DerivativeBTM:
         hedge_tree = np.full_like(self.stock_tree, np.nan)
 
         # Compute backpropagation
-        t_backprop_steps = np.arange(1, self.T)[::-1]
+        t_backprop_steps = np.arange(1, self.T)[::-1]  # Reversed array
         for t in t_backprop_steps:
             # Indices for which there are prices in the previous timesteps.
-            inds_prices = np.where(~np.isnan(self.deriv_tree[:, t]))[0]
+            inds = np.where(~np.isnan(self.deriv_tree[:, t]))[0]
 
-            # Generate the backpropagation by looking at paris of indices
-            for ind_price_top, ind_price_bot in zip(inds_prices[1:], inds_prices[:-1]):
-                ind_price_backprop = int((ind_price_bot + ind_price_top)/2)
-                # Get value
-                deriv_diff = self.deriv_tree[ind_price_bot, t] - self.deriv_tree[ind_price_top, t]
-                stock_diff = self.stock_tree[ind_price_bot, t] - self.stock_tree[ind_price_top, t]
-                hedge_tree[ind_price_backprop, t - 1] = deriv_diff / stock_diff
+            # Generate the backpropagation by looking at pairs of indices
+            for ind_up, ind_down in zip(inds[:-1], inds[1:]):
+                # The row below of up ind (equivalent to above the down ind) is that of the previous timestep
+                ind_now = ind_up + 1
+
+                # Get stock and derivative up and down values to calculate hedge now value
+                stock_up = self.stock_tree[ind_up, t]
+                stock_down = self.stock_tree[ind_down, t]
+                deriv_up = self.deriv_tree[ind_up, t]
+                deriv_down = self.deriv_tree[ind_down, t]
+
+                hedge_tree[ind_now, t - 1] = (deriv_up - deriv_down) / (stock_up - stock_down)
 
         # Save as attributes
         self.hedge_tree = hedge_tree
@@ -212,34 +226,41 @@ class DerivativeBTM:
             print('The hedge tree:')
             print(self.hedge_tree)
 
-    def _calc_borrowing(self) -> None:
+    def _calc_borrow(self) -> None:
         """
         Calculates the borrowing tree using the stock and derivative tree in matrix form where empty cells are
         filled with nans. The start, t = 0, is shown as the leftmost column of the matrix. Whereas, the end,
         t = T - 1, is shown as the rightmost column of the matrix.
         """
         # Calculate borrowing tree
-        self.bond_tree = self.deriv_tree - self.hedge_tree*self.stock_tree
+        self.borrow_tree = self.deriv_tree - self.hedge_tree*self.stock_tree
 
         # Verbose prints
         if self.verbose:
             print('The bond holding tree:')
-            print(self.bond_tree)
+            print(self.borrow_tree)
 
     def simulate(self) -> None:
         """
         Performs the generation of the four trees required: stock, derivative, hedge and borrowing.
         """
-        # Prevents resimulation
+        # Ensures simulation only performed once
         if not self.simulated:
 
-            self._verbose_header()
+            # Verbose prints
+            if self.verbose:
+                self._verbose_header()
 
             # Calculation of all trees
             self._gen_stock_tree()
             self._calc_derivative_tree()
             self._calc_hedges()
-            self._calc_borrowing()
+            self._calc_borrow()
+
+            # Verbose prints
+            if self.verbose:
+                deriv_PV = self.deriv_tree[int(self.N_rows//2), 0]
+                print(f'\n The PV of this derivative is {deriv_PV}')
 
             # Change flag
             self.simulated = True
@@ -298,7 +319,7 @@ class DerivativeBTM:
         filtration_table[r'\phi_i'] = np.concatenate((np.array([np.nan]),
                                                       self.hedge_tree[inds_path[:-1, 0], inds_path[:-1, 1]]))
         filtration_table[r'\psi_i'] = np.concatenate((np.array([np.nan]),
-                                                      self.bond_tree[inds_path[:-1, 0], inds_path[:-1, 1]]))
+                                                      self.borrow_tree[inds_path[:-1, 0], inds_path[:-1, 1]]))
 
         # Verbose prints
         if self.verbose:
@@ -336,6 +357,6 @@ class DerivativeBTM:
         Returns:
             payoff: the payoff of S_T for the option.
         """
-        S_limit, payoff_val = 100, 100
+        S_limit, payoff_val = 100, 100  # Parameters
         payoff = np.where(~np.isnan(S_T), np.where(S_T < S_limit, 0, payoff_val), np.nan)
         return payoff
