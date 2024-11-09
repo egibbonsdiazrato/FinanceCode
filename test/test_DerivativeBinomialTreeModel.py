@@ -13,8 +13,13 @@ class TestDerivativeBTM(TestCase):
         Set up function to instantiate class to be tested and save expected results as attributes.
         """
         # Initialise and perform simulation
-        S_0, DeltaS, DeltaS_type, T, payoff_func = 100, 20, 'abs', 4, DerivativeBTM.EUR_call_option_strike100_payoff
-        self.option = DerivativeBTM(S_0, DeltaS, DeltaS_type, T, payoff_func, verbose=False)
+        S_0 = 100
+        DeltaS = 20
+        DeltaS_type = 'abs'
+        r = 0 / 100
+        T = 4
+        payoff_func = DerivativeBTM.EUR_call_option_strike100_payoff
+        self.option = DerivativeBTM(S_0, DeltaS, DeltaS_type, r, T, payoff_func, verbose=False)
         self.option.simulate()
 
         # Expected results

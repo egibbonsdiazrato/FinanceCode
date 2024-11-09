@@ -17,9 +17,3 @@ $s$ is the stock price process; $B$ is the bond price process, where $B_0 = 1$; 
 value time-process; $\phi$ is the stock holding strategy; $\psi$ is the bond holding strategy, $X$ is the payoff of
 the derivative; $V$ is the value of the derivative at time $t $given a filtration $F_t$ and $T$ is the time of
 the derivative payoff.
-
-Future improvements:
-- Implement non-zero interest rates
-- Implement a fractional delta
-- Implement the general formula for q
-- Include warning if absolute delta allows for negative stock warnings

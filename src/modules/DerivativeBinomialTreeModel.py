@@ -8,9 +8,8 @@ class DerivativeBTM:
     This class find the price of a derivative by using the Binomial Tree Model.
 
     In this implementation, the following assumptions are made:
-    - r = 0: the time horizon is considered to be short enough that no interest would be paid over this period.
-    - q = 1 / 2.
-    - deltat = 1: the timesteps are integer timesteps.
+    - deltat = 1: the timesteps are integer timesteps;
+    - up and down movements of the stock are symmetric (+/- DeltaS if absolute and *DeltaS and *1/DeltaS if relative).
 
     For details of the mathematics refer to doc/BinomialTreeModel.md.
     """
@@ -18,6 +17,7 @@ class DerivativeBTM:
                  S_0: int | float,
                  DeltaS: int | float,
                  DeltaS_type: str,
+                 r: float,
                  T: int,
                  payoff_func: Callable[[np.ndarray], np.ndarray],
                  payoff_func_desc: str | bool = None,
@@ -27,9 +27,10 @@ class DerivativeBTM:
 
         Args:
             S_0: Starting price of the underlying stock.
-            DeltaS: Absolute or fractional symmetric movement of the underlying. Provide a positive or a value greater
-            than 1 for abs and fractional as the down movement will be either - DeltaS or 1/DeltaS.
-            DeltaS_type: either abs or frac to specify what DeltaS is.
+            DeltaS: Absolute or relative symmetric movement of the underlying. Provide a positive or a value greater
+            than 1 for abs and relative as the down movement will be either - DeltaS or 1/DeltaS.
+            DeltaS_type: either abs or rel to specify what DeltaS is.
+            r: The constant interest rate earned every timestep in MM.
             T: Number of time discrete time periods to maturity.
             payoff_func: Function which calculates the payoff at maturity of the derivative to be modelled.
             payoff_func_desc: Description of the payoff_func, which defaults to None.
@@ -38,6 +39,8 @@ class DerivativeBTM:
         # Save inputs attributes
         self.S_0 = S_0
         self.DeltaS = DeltaS
+        self.r = r
+        self.deltat = 1  # Hardcoded property
         self.T = T
         self.payoff_func = payoff_func
         self.payoff_func_desc = payoff_func_desc
@@ -50,13 +53,16 @@ class DerivativeBTM:
         # Flags
         # Delta type flag
         self.DeltaS_abs = False
-        self.DeltaS_frac = False
+        self.DeltaS_rel = False
         if DeltaS_type == 'abs':
             self.DeltaS_abs = True
-        elif DeltaS_type == 'frac':
-            self.DeltaS_frac = True
+            # Check that the stock price can never be negative
+            if self.T >= np.ceil(self.S_0/self.DeltaS):
+                raise Exception('Reduce the number of timesteps to ensure that the stock cannot have a negative price')
+        elif DeltaS_type == 'rel':
+            self.DeltaS_rel = True
         else:
-            raise Exception(f'The DeltaS type provided, {DeltaS_type}, has to be either abs or frac')
+            raise Exception(f'The DeltaS type provided, {DeltaS_type}, has to be either abs or rel')
         self.simulated = False
 
         # Placeholder attributes
@@ -73,8 +79,8 @@ class DerivativeBTM:
         print(f'{"Binomial Tree Model Instance":=^80}')
         if self.payoff_func_desc is not None:
             print(f'{self.payoff_func_desc}')
-            print(f'This is modelled with initial stock price of S_0 = {self.S_0} and a maturity of '
-                  f'T = {self.T} \n timesteps')
+            print(f'This is modelled with initial stock price of S_0 = {self.S_0}, int. rates of\n'
+                  f'r = {100*self.r}% and a maturity of T = {self.T} timesteps')
     
     def _calc_up_stock_price(self, S_now: np.floating) -> int | float:
         """
@@ -90,7 +96,7 @@ class DerivativeBTM:
             S_up = S_now + self.DeltaS
             return S_up
 
-        if self.DeltaS_frac:
+        if self.DeltaS_rel:
             S_up = S_now*self.DeltaS
             return S_up
 
@@ -108,7 +114,7 @@ class DerivativeBTM:
             S_down = S_now - self.DeltaS
             return S_down
 
-        if self.DeltaS_frac:
+        if self.DeltaS_rel:
             S_down = S_now*(1/self.DeltaS)
             return S_down
         
@@ -171,14 +177,14 @@ class DerivativeBTM:
                 ind_now = ind_up + 1
 
                 # Calculate q probabilities
-                q_num = self.stock_tree[ind_now, t - 1] - self.stock_tree[ind_down, t]
+                q_num = np.exp(self.r*self.deltat)*self.stock_tree[ind_now, t - 1] - self.stock_tree[ind_down, t]
                 q_denom = self.stock_tree[ind_up, t] - self.stock_tree[ind_down, t]
                 q = q_num / q_denom
 
                 # Get derivative up and down values and calculate derivative now value
                 deriv_up = deriv_tree[ind_up, t]
                 deriv_down = deriv_tree[ind_down, t]
-                deriv_now = q*deriv_up + (1 - q)*deriv_down
+                deriv_now = np.exp(-1*self.r*self.deltat)*(q*deriv_up + (1 - q)*deriv_down)
 
                 deriv_tree[ind_now, t - 1] = deriv_now
 
@@ -232,8 +238,27 @@ class DerivativeBTM:
         filled with nans. The start, t = 0, is shown as the leftmost column of the matrix. Whereas, the end,
         t = T - 1, is shown as the rightmost column of the matrix.
         """
-        # Calculate borrowing tree
-        self.borrow_tree = self.deriv_tree - self.hedge_tree*self.stock_tree
+        # Initialise the borrow tree
+        borrow_tree = np.full_like(self.stock_tree, np.nan)
+
+        # Compute forward propagation
+        t_fwdprop_steps = np.arange(0, self.T - 1)
+        for t in t_fwdprop_steps:
+            # Indices for which there are prices in the previous timesteps.
+            inds_now = np.where(~np.isnan(self.deriv_tree[:, t]))[0]
+
+            # Consider each row
+            for ind_now in inds_now:
+                # Get stock, derivative and hedge now values to calculate borrow now value
+                stock_now = self.stock_tree[ind_now, t]
+                deriv_now = self.deriv_tree[ind_now, t]
+                hedge_now = self.hedge_tree[ind_now, t]
+                DF = np.exp(-1*self.r*(self.T - t))  # Discount Factor
+
+                borrow_tree[ind_now, t] = DF*(deriv_now - hedge_now*stock_now)
+
+        # Save as attributes
+        self.borrow_tree = borrow_tree
 
         # Verbose prints
         if self.verbose:
@@ -343,20 +368,4 @@ class DerivativeBTM:
         """
         k = 100  # Strike value
         payoff = np.where(~np.isnan(S_T), np.where(S_T < k, 0, S_T - k), np.nan)
-        return payoff
-
-    @staticmethod
-    def custom_option_payoff(S_T: np.ndarray) -> np.ndarray:
-        """
-        Produces payoffs for a custom function which only pays the payoff_val if stock price at maturity is greater
-        than or equal to S_limit.
-
-        Args:
-            S_T: the last column of the matrix which holds the values of the stock at maturity.
-
-        Returns:
-            payoff: the payoff of S_T for the option.
-        """
-        S_limit, payoff_val = 100, 100  # Parameters
-        payoff = np.where(~np.isnan(S_T), np.where(S_T < S_limit, 0, payoff_val), np.nan)
         return payoff
