@@ -46,6 +46,7 @@ if __name__ == '__main__':
                                 payoff_func,
                                 payoff_func_desc='This derivative is a EUR call option with strike 100.')
     option1_alt.simulate()
+    option1_alt.generate_filtration_table(['down', 'up', 'down'])
 
     # Parameters
     S_0 = 100

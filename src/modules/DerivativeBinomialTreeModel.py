@@ -79,10 +79,10 @@ class DerivativeBTM:
         print(f'{"Binomial Tree Model Instance":=^80}')
         if self.payoff_func_desc is not None:
             print(f'{self.payoff_func_desc}')
-            print(f'This is modelled with initial stock price of S_0 = {self.S_0}, int. rates of\n'
-                  f'r = {100*self.r}% and a maturity of T = {self.T} timesteps')
+            print(f'This is modelled with initial stock price of S_0 = {self.S_0}, int. rates of '
+                  f'r = {100*self.r}%\n and a maturity of T = {self.T} timesteps')
     
-    def _calc_up_stock_price(self, S_now: np.floating) -> int | float:
+    def _calc_up_stock_price(self, S_now: float) -> int | float:
         """
         Calculates the stock up price for the timestep after S_now.
         Args:
@@ -100,7 +100,7 @@ class DerivativeBTM:
             S_up = S_now*self.DeltaS
             return S_up
 
-    def _calc_down_stock_price(self, S_now: np.floating) -> int | float:
+    def _calc_down_stock_price(self, S_now: float) -> int | float:
         """
         Calculates the stock down price for the timestep after S_now.
         Args:
@@ -137,7 +137,7 @@ class DerivativeBTM:
 
             # Generate an up and down price for each non-zero price of the previous timestep
             for ind_now in inds:
-                S_now = stock_tree[ind_now, t - 1]
+                S_now = float(stock_tree[ind_now, t - 1])
                 ind_up, ind_down = ind_now - 1, ind_now + 1  # Note up and down refers to stock price move
                 stock_tree[ind_up, t] = self._calc_up_stock_price(S_now)  # Up move
                 stock_tree[ind_down, t] = self._calc_down_stock_price(S_now)  # Down move
@@ -253,7 +253,7 @@ class DerivativeBTM:
                 stock_now = self.stock_tree[ind_now, t]
                 deriv_now = self.deriv_tree[ind_now, t]
                 hedge_now = self.hedge_tree[ind_now, t]
-                DF = np.exp(-1*self.r*(self.T - t))  # Discount Factor
+                DF = np.exp(-1*self.r*t)  # Discount Factor  TODO make sure that this correct
 
                 borrow_tree[ind_now, t] = DF*(deriv_now - hedge_now*stock_now)
 
