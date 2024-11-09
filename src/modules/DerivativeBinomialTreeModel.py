@@ -31,7 +31,7 @@ class DerivativeBTM:
             than 1 for abs and relative as the down movement will be either - DeltaS or 1/DeltaS.
             DeltaS_type: either abs or rel to specify what DeltaS is.
             r: The constant interest rate earned every timestep in MM.
-            T: Number of time discrete time periods to maturity.
+            T: Simulation has steps from 0 to T - 1 in steps of 1.
             payoff_func: Function which calculates the payoff at maturity of the derivative to be modelled.
             payoff_func_desc: Description of the payoff_func, which defaults to None.
             verbose: Flag which controls verbosity, which defaults to True.
@@ -47,7 +47,7 @@ class DerivativeBTM:
         self.verbose = verbose
 
         # Derived attributes
-        self.N_rows = 2 ** (self.T - 1) - 1  # Rows required for binomial tree model matrix
+        self.N_rows = 2*self.T - 1  # Rows required for binomial tree model matrix
         self.initial_inds = np.array([int(self.N_rows // 2), 0])  # The index pair for point at t = 0
 
         # Flags
@@ -80,7 +80,7 @@ class DerivativeBTM:
         if self.payoff_func_desc is not None:
             print(f'{self.payoff_func_desc}')
             print(f'This is modelled with initial stock price of S_0 = {self.S_0}, int. rates of '
-                  f'r = {100*self.r}%\n and a maturity of T = {self.T} timesteps')
+                  f'r = {100*self.r}%\nand a maturity of T = {self.T} timesteps.')
     
     def _calc_up_stock_price(self, S_now: float) -> int | float:
         """
@@ -253,7 +253,7 @@ class DerivativeBTM:
                 stock_now = self.stock_tree[ind_now, t]
                 deriv_now = self.deriv_tree[ind_now, t]
                 hedge_now = self.hedge_tree[ind_now, t]
-                DF = np.exp(-1*self.r*t)  # Discount Factor  TODO make sure that this correct
+                DF = np.exp(-1*self.r*t)  # Discount Factor
 
                 borrow_tree[ind_now, t] = DF*(deriv_now - hedge_now*stock_now)
 
@@ -329,7 +329,7 @@ class DerivativeBTM:
 
         # Raise error if sequence is not the correct length
         if len(seq) != self.T - 1:
-            raise Exception(f'The sequence is {len(seq)=} and not {self.T}')
+            raise Exception(f'The sequence is {len(seq)=} and not {self.T - 1}')
 
         # Get the indices for the filtration
         inds_path = self._seq_to_inds(seq)

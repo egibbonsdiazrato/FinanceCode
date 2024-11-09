@@ -20,6 +20,9 @@ def custom_option_payoff(S_T: np.ndarray) -> np.ndarray:
 
 
 if __name__ == '__main__':
+    # Set print options to print the entire matrix
+    np.set_printoptions(threshold=10**5, linewidth=10**5)
+
     # Parameters
     S_0 = 100
     DeltaS = 20
@@ -50,11 +53,10 @@ if __name__ == '__main__':
 
     # Parameters
     S_0 = 100
-    DeltaS = 20
-    DeltaS_type = 'abs'
-    r = 0 / 100
-    T = 4
-    payoff_func = custom_option_payoff
+    DeltaS = 1.1
+    DeltaS_type = 'rel'
+    r = 0.01 / 100
+    T = 10
 
     option2 = DerivativeBTM(S_0,
                             DeltaS,
@@ -62,7 +64,26 @@ if __name__ == '__main__':
                             r,
                             T,
                             payoff_func,
-                            payoff_func_desc='This derivative pays 100 if the stock price at maturity is greater than '
-                                             '\nthe starting stock price.')
+                            payoff_func_desc='This derivative is a EUR call option with strike 100.')
     option2.simulate()
-    option2.generate_filtration_table(['up', 'up', 'up'])
+    option2.generate_filtration_table(['down', 'up', 'down', 'up', 'up',
+                                       'down', 'up', 'down', 'up'])
+
+    # Parameters
+    S_0 = 100
+    DeltaS = 20
+    DeltaS_type = 'abs'
+    r = 0 / 100
+    T = 4
+    payoff_func = custom_option_payoff
+
+    option3 = DerivativeBTM(S_0,
+                            DeltaS,
+                            DeltaS_type,
+                            r,
+                            T,
+                            payoff_func,
+                            payoff_func_desc='This derivative pays 100 if the stock price at maturity is greater than'
+                                             '\nor equal to 100.')
+    option3.simulate()
+    option3.generate_filtration_table(['up', 'up', 'up'])
