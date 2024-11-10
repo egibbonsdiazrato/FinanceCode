@@ -4,7 +4,7 @@ The equations governing this system are:
 
 $$ q = \frac{e^{r \delta t}s_{now} - s_{down}}{s_{up} - s_{down}} $$
 
-$$f_{now} = e^{-r \delta t} \left( qf_{up} + \left(1 - q \right) f_{down} $$
+$$f_{now} = e^{-r \delta t} \left( qf_{up} + \left(1 - q \right) f_{down} \right) $$
 
 $$ V_t = B_t E_Q \left( B_T^{-1}X | F_t \right) \implies V_0 = E_Q(B_T^{-1}X) $$
 
