@@ -28,7 +28,7 @@ if __name__ == '__main__':
     DeltaS = 20
     DeltaS_type = 'abs'
     r = 0 / 100
-    T = 4
+    T = 3
     payoff_func = DerivativeBTM.EUR_call_option_strike100_payoff
 
     option1 = DerivativeBTM(S_0,
@@ -56,7 +56,7 @@ if __name__ == '__main__':
     DeltaS = 1.1
     DeltaS_type = 'rel'
     r = 0.01 / 100
-    T = 10
+    T = 9
 
     option2 = DerivativeBTM(S_0,
                             DeltaS,
@@ -74,7 +74,7 @@ if __name__ == '__main__':
     DeltaS = 20
     DeltaS_type = 'abs'
     r = 0 / 100
-    T = 4
+    T = 3
     payoff_func = custom_option_payoff
 
     option3 = DerivativeBTM(S_0,

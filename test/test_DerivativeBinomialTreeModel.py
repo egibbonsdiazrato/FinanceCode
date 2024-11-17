@@ -17,7 +17,7 @@ class TestDerivativeBTM(TestCase):
         DeltaS = 20
         DeltaS_type = 'abs'
         r = 0 / 100
-        T = 4
+        T = 3
         payoff_func = DerivativeBTM.EUR_call_option_strike100_payoff
         self.option = DerivativeBTM(S_0, DeltaS, DeltaS_type, r, T, payoff_func, verbose=False)
         self.option.simulate()

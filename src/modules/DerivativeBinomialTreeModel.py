@@ -36,6 +36,14 @@ class DerivativeBTM:
             payoff_func_desc: Description of the payoff_func, which defaults to None.
             verbose: Flag which controls verbosity, which defaults to True.
         """
+        # Exceptions for inputs
+        if S_0 <= 0:
+            raise ValueError(f'S_0 has to be greater than 0. The value input was {S_0=}.')
+        if DeltaS <= 0:
+            raise ValueError(f'DeltaS has to be greater than 0. The value input was {DeltaS=}.')
+        if r < 0:
+            raise ValueError(f'r has to be greater than or equal to 0. The value input was {r=}.')
+
         # Save inputs attributes
         self.S_0 = S_0
         self.DeltaS = DeltaS
@@ -47,7 +55,8 @@ class DerivativeBTM:
         self.verbose = verbose
 
         # Derived attributes
-        self.N_rows = 2*self.T - 1  # Rows required for binomial tree model matrix
+        self.N_cols = self.T + 1  # Cols required for binomial tree model matrix
+        self.N_rows = 2*self.N_cols - 1  # Rows required for binomial tree model matrix
         self.initial_inds = np.array([int(self.N_rows // 2), 0])  # The index pair for point at t = 0
 
         # Flags
@@ -80,7 +89,7 @@ class DerivativeBTM:
         if self.payoff_func_desc is not None:
             print(f'{self.payoff_func_desc}')
             print(f'This is modelled with initial stock price of S_0 = {self.S_0}, int. rates of '
-                  f'r = {100*self.r}%\nand a maturity of T = {self.T} timesteps.')
+                  f'r = {100*self.r}%\nand a maturity of T = {self.T}.')
     
     def _calc_up_stock_price(self, S_now: float) -> int | float:
         """
@@ -121,17 +130,17 @@ class DerivativeBTM:
     def _gen_stock_tree(self) -> None:
         """
         Generates the stock tree in matrix form where empty cells are filled with nans. The start, t = 0, is shown
-        as the leftmost column of the matrix. Whereas, the end, t = T - 1, is shown as the rightmost column of the
+        as the leftmost column of the matrix. Whereas, the end, t = T, is shown as the rightmost column of the
         matrix.
         """
         # Initialise matrix
-        stock_tree = np.full((self.N_rows, self.T), np.nan)
+        stock_tree = np.full((self.N_rows, self.N_cols), np.nan)
 
         # Add initial stock price
         stock_tree[self.initial_inds[0], self.initial_inds[1]] = self.S_0
 
         # Generate the up and down values for each timestep by looking at non-zero values in the previous timestep
-        for t in range(1, self.T):
+        for t in range(1, self.N_cols):
             # Indices for which there are prices in the previous timesteps
             inds = np.where(~np.isnan(stock_tree[:, t - 1]))[0]
 
@@ -166,7 +175,7 @@ class DerivativeBTM:
         deriv_tree[:, -1] = deriv_payoff_mat
 
         # Compute backpropagation
-        t_backprop_steps = np.arange(1, self.T)[::-1]  # Reversed array
+        t_backprop_steps = np.arange(1, self.N_cols)[::-1]  # Reversed array
         for t in t_backprop_steps:
             # Indices for which there are prices in the previous timesteps.
             inds = np.where(~np.isnan(deriv_tree[:, t]))[0]
@@ -206,7 +215,7 @@ class DerivativeBTM:
         hedge_tree = np.full_like(self.stock_tree, np.nan)
 
         # Compute backpropagation
-        t_backprop_steps = np.arange(1, self.T)[::-1]  # Reversed array
+        t_backprop_steps = np.arange(1, self.N_cols)[::-1]  # Reversed array
         for t in t_backprop_steps:
             # Indices for which there are prices in the previous timesteps.
             inds = np.where(~np.isnan(self.deriv_tree[:, t]))[0]
@@ -242,7 +251,7 @@ class DerivativeBTM:
         borrow_tree = np.full_like(self.stock_tree, np.nan)
 
         # Compute forward propagation
-        t_fwdprop_steps = np.arange(0, self.T - 1)
+        t_fwdprop_steps = np.arange(0, self.N_cols - 1)
         for t in t_fwdprop_steps:
             # Indices for which there are prices in the previous timesteps.
             inds_now = np.where(~np.isnan(self.deriv_tree[:, t]))[0]
@@ -303,7 +312,7 @@ class DerivativeBTM:
         """
         row_prefactor = {'up': -1, 'down': 1}
 
-        inds = np.zeros((self.T, 2))
+        inds = np.zeros((self.N_cols, 2))
         inds[0, :] = self.initial_inds
 
         for counter, move in enumerate(seq, 1):
@@ -328,15 +337,15 @@ class DerivativeBTM:
             raise Exception('The trees have not been generated.')
 
         # Raise error if sequence is not the correct length
-        if len(seq) != self.T - 1:
-            raise Exception(f'The sequence is {len(seq)=} and not {self.T - 1}')
+        if len(seq) != self.T:
+            raise Exception(f'The sequence is {len(seq)=} and not {self.T}')
 
         # Get the indices for the filtration
         inds_path = self._seq_to_inds(seq)
 
         # Produce table
         filtration_table = pd.DataFrame()
-        filtration_table['t_i'] = np.arange(0, self.T)
+        filtration_table['t_i'] = np.arange(0, self.N_cols)
         filtration_table.set_index(keys=['t_i'], inplace=True)  # Make time the index
         filtration_table['Prev. Jump'] = ['-'] + seq
         filtration_table['S_i'] = self.stock_tree[inds_path[:, 0], inds_path[:, 1]]
