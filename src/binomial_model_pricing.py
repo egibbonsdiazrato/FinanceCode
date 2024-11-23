@@ -3,7 +3,7 @@ import numpy as np
 from modules.DerivativeBinomialTreeModel import DerivativeBTM
 
 
-def custom_option_payoff(S_T: np.ndarray) -> np.ndarray:
+def binary_option_payoff(S_T: np.ndarray) -> np.ndarray:
     """
     Produces payoffs for a custom function which only pays the payoff_val if stock price at maturity is greater
     than or equal to S_limit.
@@ -75,7 +75,7 @@ if __name__ == '__main__':
     DeltaS_type = 'abs'
     r = 0 / 100
     T = 3
-    payoff_func = custom_option_payoff
+    payoff_func = binary_option_payoff
 
     option3 = DerivativeBTM(S_0,
                             DeltaS,
