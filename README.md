@@ -5,4 +5,5 @@ projects, explore the doc and src directories.
 
 ## Projects:
 
-- Binomial Tree Model: binomial_model_pricing.py and DerivativeBinomialTreeModel.py.
+- Binomial Tree Model: src/binomial_model_pricing.py and src/modules/DerivativeBinomialTreeModel.py.
+- Bonds: src/bond_course.py.
