@@ -7,3 +7,4 @@ projects, explore the doc and src directories.
 
 - Binomial Tree Model: src/binomial_model_pricing.py and src/modules/DerivativeBinomialTreeModel.py.
 - Bonds: src/bond_course.py.
+- MPT: Modern Portfolio Theory

@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "FinanceCode"
 version = "1.0.0"
-description = "A repository which contains financ code."
+description = "A repository which contains finance code."
 authors = ["Eduardo Gibbons Diaz-Rato"]
 readme="README.md"
 license="MIT"
@@ -15,6 +15,7 @@ numpy = "^2.0.0"
 numpy-financial = "1.0.0"
 pandas = "^2.2.0"
 plotly = "^5.3.1"
+scipy = "^1.15.0"
 
 [build-system]
 requires = ["poetry>=1.0.0"]
