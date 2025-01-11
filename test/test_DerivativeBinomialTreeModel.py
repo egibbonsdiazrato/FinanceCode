@@ -1,7 +1,7 @@
 import numpy as np
 from unittest import TestCase
 
-from src.modules.DerivativeBinomialTreeModel import DerivativeBTM
+from src.modules.DerivativeBinomialTreeModel import Market, Stock, DerivativeBTM
 
 
 class TestDerivativeBTM(TestCase):
@@ -13,14 +13,12 @@ class TestDerivativeBTM(TestCase):
         Set up function to instantiate class to be tested and save expected results as attributes.
         """
         # Initialise and perform simulation
-        S_0 = 100
-        DeltaS = 20
-        DeltaS_type = 'abs'
-        r = 0 / 100
-        T = 3
+        market_test = Market(r=0, T=3)
+        stock_test = Stock(S_0=100, DeltaS=20, DeltaS_type='abs')
         payoff_func = DerivativeBTM.EUR_call_option_strike100_payoff
-        self.option = DerivativeBTM(S_0, DeltaS, DeltaS_type, r, T, payoff_func, verbose=False)
-        self.option.simulate()
+        self.option_test = DerivativeBTM(payoff_func=DerivativeBTM.EUR_call_option_strike100_payoff,
+                                         payoff_func_desc='This derivative is a EUR call option with strike 100.')
+        self.option_test.simulate_price_and_replication(stock=stock_test, market=market_test, verbose=True)
 
         # Expected results
         self.exp_stock_tree = np.array([[np.nan, np.nan, np.nan, 160.],
@@ -56,26 +54,26 @@ class TestDerivativeBTM(TestCase):
         """
         Test to ensure matching stock trees.
         """
-        self.assertTrue(np.allclose(self.option.stock_tree, self.exp_stock_tree,
+        self.assertTrue(np.allclose(self.option_test.stock_tree, self.exp_stock_tree,
                                     atol=1e-14, rtol=1e-14, equal_nan=True))
 
     def test_deriv_tree(self) -> None:
         """
         Test to ensure matching stock trees.
         """
-        self.assertTrue(np.allclose(self.option.deriv_tree, self.exp_deriv_tree,
+        self.assertTrue(np.allclose(self.option_test.deriv_tree, self.exp_deriv_tree,
                                     atol=1e-14, rtol=1e-14, equal_nan=True))
 
     def test_hedge_tree(self) -> None:
         """
         Test to ensure matching stock trees.
         """
-        self.assertTrue(np.allclose(self.option.hedge_tree, self.exp_hedge_tree,
+        self.assertTrue(np.allclose(self.option_test.hedge_tree, self.exp_hedge_tree,
                                     atol=1e-14, rtol=1e-14, equal_nan=True))
 
     def test_borrow_tree(self) -> None:
         """
         Test to ensure matching stock trees.
         """
-        self.assertTrue(np.allclose(self.option.borrow_tree, self.exp_borrow_tree,
+        self.assertTrue(np.allclose(self.option_test.borrow_tree, self.exp_borrow_tree,
                                     atol=1e-14, rtol=1e-14, equal_nan=True))
