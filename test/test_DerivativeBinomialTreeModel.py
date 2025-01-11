@@ -15,7 +15,6 @@ class TestDerivativeBTM(TestCase):
         # Initialise and perform simulation
         market_test = Market(r=0, T=3)
         stock_test = Stock(S_0=100, DeltaS=20, DeltaS_type='abs')
-        payoff_func = DerivativeBTM.EUR_call_option_strike100_payoff
         self.option_test = DerivativeBTM(payoff_func=DerivativeBTM.EUR_call_option_strike100_payoff,
                                          payoff_func_desc='This derivative is a EUR call option with strike 100.')
         self.option_test.simulate_price_and_replication(stock=stock_test, market=market_test, verbose=True)
