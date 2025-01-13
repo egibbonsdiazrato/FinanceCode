@@ -119,7 +119,7 @@ class DerivativeBTM:
         self.hedge_tree = None
         self.borrow_tree = None
 
-    def simulate_price_and_replication(self, stock: Stock, market: Market, verbose: bool) -> int | float:
+    def simulate_price_and_replication(self, stock: Stock, market: Market, verbose: bool) -> None:
         """
         Performs the generation of the four trees required: stock, derivative, hedge and borrowing.
 
@@ -151,16 +151,12 @@ class DerivativeBTM:
 
             # Calculation of all trees
             self._gen_stock_tree(stock, verbose)
-            self._calc_derivative_tree(market, verbose)
+            self._calc_deriv_tree(market, verbose)
             self._calc_hedges(verbose)
             self._calc_borrow(market.r, verbose)
 
             # Activate simulated flag
             self.simulated = True
-
-        # Return derivative PV
-        deriv_PV = self.deriv_tree[self.initial_inds]
-        return deriv_PV
 
     def _verbose_header(self, T: int, r: float, S_0: int | float) -> None:
         """
@@ -257,7 +253,7 @@ class DerivativeBTM:
             print('The stock tree:')
             print(self.stock_tree)
 
-    def _calc_derivative_tree(self, market: Market, verbose: bool) -> None:
+    def _calc_deriv_tree(self, market: Market, verbose: bool) -> None:
         """
         Calculates the derivative tree in matrix through backpropagation form where empty cells are filled with nans.
         The start, t = 0, is shown as the leftmost column of the matrix. Whereas, the end, t = T - 1, is shown
@@ -300,6 +296,7 @@ class DerivativeBTM:
 
         # Save as attributes
         self.deriv_tree = deriv_tree
+        self.deriv_PV = deriv_tree[self.initial_inds[0]][self.initial_inds[1]]
 
         # Verbose prints
         if verbose:
@@ -447,3 +444,32 @@ class DerivativeBTM:
         k = 100  # Strike value
         payoff = np.where(~np.isnan(S_T), np.where(S_T < k, 0, S_T - k), np.nan)
         return payoff
+
+
+def IntRate_delta_rist(deriv: DerivativeBTM, stock: Stock, market: Market) -> None:
+    """
+    Computes the interest rate delta numerically by shifting the interest rate by 1 b.p. and
+    Args:
+        deriv: the original derivative object.
+        stock: the stock object used to price the original derivative.
+        market: the market object used to price the original derivative.
+    """
+    if not deriv.simulated:
+        raise TypeError(f'The derivative price has to be calculated before this functions is applied.')
+
+    base_PV = deriv.deriv_PV
+
+    # Recompute shifted PV for shifted market
+    shifted_market = Market(r=market.r + 10**(-4), T=market.T)
+    shifted_deriv = DerivativeBTM(payoff_func=deriv.payoff_func,
+                                  payoff_func_desc=deriv.payoff_func_desc)
+
+    # Not the most efficient way as hedges and borrows are not required
+    shifted_deriv.simulate_price_and_replication(stock=stock, market=shifted_market, verbose=False)
+
+    shifted_PV = shifted_deriv.deriv_PV
+
+    # Compute difference
+    IntRate_delta = shifted_PV - base_PV
+    print()
+    print(f'The interest rate delta is {IntRate_delta} USD for a shift from {100*market.r}% to {100*shifted_market.r}%')

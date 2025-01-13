@@ -1,6 +1,6 @@
 import numpy as np
 
-from modules.DerivativeBinomialTreeModel import Market, Stock, DerivativeBTM
+from modules.DerivativeBinomialTreeModel import Market, Stock, DerivativeBTM, IntRate_delta_rist
 
 
 def binary_option_payoff(S_T: np.ndarray) -> np.ndarray:
@@ -25,7 +25,7 @@ if __name__ == '__main__':
 
     # Initial set up
     market_1 = Market(r=0, T=3)
-    market_2 = Market(r=0.01/100, T=9)
+    market_2 = Market(r=0.01, T=9)
 
     stock_A = Stock(S_0=100, DeltaS=20, DeltaS_type='abs')
     stock_B = Stock(S_0=100, DeltaS=1.1, DeltaS_type='rel')
@@ -40,6 +40,7 @@ if __name__ == '__main__':
                             payoff_func_desc='This derivative is a EUR call option with strike 100.')
     option2.simulate_price_and_replication(stock=stock_B, market=market_2, verbose=True)
     option2.generate_filtration_table(['down', 'up', 'down', 'up', 'up', 'down', 'up', 'down', 'up'], market_2.T)
+    IntRate_delta_rist(option2, stock_B, market_2)  # Compute risk
 
     option3 = DerivativeBTM(payoff_func=binary_option_payoff,
                             payoff_func_desc='This derivative pays 100 if the stock price at maturity is greater than'
