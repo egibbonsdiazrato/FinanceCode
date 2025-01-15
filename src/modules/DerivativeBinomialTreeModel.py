@@ -399,18 +399,19 @@ class VanillaOptionBTM(BaseOptionBTM):
     """
     A class to model Vanilla options. The only method required to implement is _calc_deriv_tree.
     """
-    def __init__(self, payoff_func: Callable[[np.ndarray], np.ndarray], payoff_func_desc: str | bool = None, is_EUR: bool = True) -> None:
+    def __init__(self, payoff_func: Callable[[np.ndarray], np.ndarray], payoff_func_desc: str | bool = None, is_AME: bool = False) -> None:
         """
+        Derivative constructor.
 
         Args:
-            payoff_func:
-            payoff_func_desc:
-            is_EUR:
+            payoff_func: Function which calculates the payoff at maturity of the derivative to be modelled.
+            payoff_func_desc: Description of the payoff_func, which defaults to None.
+            is_AME: flag which defaults to false (making the option European).
         """
         super().__init__(payoff_func, payoff_func_desc)  # Call parent constructor
 
         # Add a flat for whether EUR (if not assumed to be AME)
-        self.is_EUR = is_EUR
+        self.is_AME = is_AME
 
     def _calc_deriv_tree(self, market: Market, verbose: bool) -> None:
         """
@@ -451,7 +452,13 @@ class VanillaOptionBTM(BaseOptionBTM):
                 deriv_down = deriv_tree[ind_down, t]
                 deriv_now = np.exp(-1*market.r*market.deltat)*(q*deriv_up + (1 - q)*deriv_down)
 
-                deriv_tree[ind_now, t - 1] = deriv_now
+                # EUR
+                if not self.is_AME:
+                    deriv_tree[ind_now, t - 1] = deriv_now
+                # AME
+                else:
+                    # Take into account early exercise
+                    deriv_tree[ind_now, t - 1] = max(deriv_now, self.payoff_func(self.stock_tree[ind_now, t - 1]))
 
         # Save as attributes
         self.deriv_tree = deriv_tree
