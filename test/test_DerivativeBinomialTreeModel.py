@@ -1,10 +1,10 @@
 import numpy as np
 from unittest import TestCase
 
-from src.modules.DerivativeBinomialTreeModel import Market, Stock, DerivativeBTM
+from src.modules.DerivativeBinomialTreeModel import Market, Stock, VanillaOptionBTM
 
 
-class TestDerivativeBTM(TestCase):
+class TestOptionBTM(TestCase):
     """
     A unit test for a simple EUR call option with strike at 100 which has been solved manually.
     """
@@ -15,8 +15,8 @@ class TestDerivativeBTM(TestCase):
         # Initialise and perform simulation
         market_test = Market(r=0, T=3)
         stock_test = Stock(S_0=100, step=20, step_type='abs')
-        self.option_test = DerivativeBTM(payoff_func=DerivativeBTM.EUR_call_option_strike100_payoff,
-                                         payoff_func_desc='This derivative is a EUR call option with strike 100.')
+        self.option_test = VanillaOptionBTM(payoff_func=VanillaOptionBTM.call_option_strike100_payoff,
+                                            payoff_func_desc='This derivative is a EUR call option with strike 100.')
         self.option_test.simulate_price_and_replication(stock=stock_test, market=market_test, verbose=True)
 
         # Expected results

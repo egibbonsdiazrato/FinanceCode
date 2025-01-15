@@ -1,3 +1,4 @@
+from abc import ABC, abstractmethod
 import numpy as np
 import pandas as pd
 from typing import Callable
@@ -89,10 +90,10 @@ class Market:
         return market_str
 
 
-class DerivativeBTM:
+class BaseOptionBTM(ABC):
     """
-    This class holds the information of a derivative to be modelled. The attributes of this class are the payoff
-    function and its description.
+    This abstract base class holds the information of a derivative to be modelled. The attributes of this class are the
+    payoff function and its description.
     """
     def __init__(self, payoff_func: Callable[[np.ndarray], np.ndarray], payoff_func_desc: str | bool = None) -> None:
         """
@@ -253,6 +254,7 @@ class DerivativeBTM:
             print('The stock tree:')
             print(self.stock_tree)
 
+    @abstractmethod
     def _calc_deriv_tree(self, market: Market, verbose: bool) -> None:
         """
         Calculates the derivative tree in matrix through backpropagation form where empty cells are filled with nans.
@@ -263,45 +265,7 @@ class DerivativeBTM:
             market: market object with the required attributes.
             verbose: verbosity flag.
         """
-        # Initialise the matrix and find the last column by applying the payoff func
-        deriv_tree = np.full_like(self.stock_tree, np.nan)
-        stock_mat = self.stock_tree[:, -1]
-        deriv_payoff_mat = self.payoff_func(stock_mat).reshape(-1)
-
-        # Add the maturity row for derivative
-        deriv_tree[:, -1] = deriv_payoff_mat
-
-        # Compute backpropagation
-        t_backprop_steps = np.arange(1, self.N_cols)[::-1]  # Reversed array
-        for t in t_backprop_steps:
-            # Indices for which there are prices in the previous timesteps.
-            inds = np.where(~np.isnan(deriv_tree[:, t]))[0]
-
-            # Generate the backpropagation by looking at pairs of indices
-            for ind_up, ind_down in zip(inds[:-1], inds[1:]):
-                # The row below of up ind (equivalent to above the down ind) is that of the previous timestep
-                ind_now = ind_up + 1
-
-                # Calculate q probabilities
-                q_num = np.exp(market.r*market.deltat)*self.stock_tree[ind_now, t - 1] - self.stock_tree[ind_down, t]
-                q_denom = self.stock_tree[ind_up, t] - self.stock_tree[ind_down, t]
-                q = q_num / q_denom
-
-                # Get derivative up and down values and calculate derivative now value
-                deriv_up = deriv_tree[ind_up, t]
-                deriv_down = deriv_tree[ind_down, t]
-                deriv_now = np.exp(-1*market.r*market.deltat)*(q*deriv_up + (1 - q)*deriv_down)
-
-                deriv_tree[ind_now, t - 1] = deriv_now
-
-        # Save as attributes
-        self.deriv_tree = deriv_tree
-        self.deriv_PV = deriv_tree[self.initial_inds[0]][self.initial_inds[1]]
-
-        # Verbose prints
-        if verbose:
-            print('The derivative tree:')
-            print(self.deriv_tree)
+        pass
 
     def _calc_hedges(self, verbose: bool) -> None:
         """
@@ -430,23 +394,96 @@ class DerivativeBTM:
         print(f'The filtration table for the sequence {seq}:')
         print(filtration_table.to_string())
 
+
+class VanillaOptionBTM(BaseOptionBTM):
+    """
+    A class to model Vanilla options. The only method required to implement is _calc_deriv_tree.
+    """
+    def __init__(self, payoff_func: Callable[[np.ndarray], np.ndarray], payoff_func_desc: str | bool = None, is_EUR: bool = True) -> None:
+        """
+
+        Args:
+            payoff_func:
+            payoff_func_desc:
+            is_EUR:
+        """
+        super().__init__(payoff_func, payoff_func_desc)  # Call parent constructor
+
+        # Add a flat for whether EUR (if not assumed to be AME)
+        self.is_EUR = is_EUR
+
+    def _calc_deriv_tree(self, market: Market, verbose: bool) -> None:
+        """
+        Calculates the derivative tree in matrix through backpropagation form where empty cells are filled with nans.
+        The start, t = 0, is shown as the leftmost column of the matrix. Whereas, the end, t = T - 1, is shown
+        as the rightmost column of the matrix.
+
+        Args:
+            market: market object with the required attributes.
+            verbose: verbosity flag.
+        """
+        # Initialise the matrix and find the last column by applying the payoff func
+        deriv_tree = np.full_like(self.stock_tree, np.nan)
+        stock_mat = self.stock_tree[:, -1]
+        deriv_payoff_mat = self.payoff_func(stock_mat).reshape(-1)
+
+        # Add the maturity row for derivative
+        deriv_tree[:, -1] = deriv_payoff_mat
+
+        # Compute backpropagation
+        t_backprop_steps = np.arange(1, self.N_cols)[::-1]  # Reversed array
+        for t in t_backprop_steps:
+            # Indices for which there are prices in the previous timesteps.
+            inds = np.where(~np.isnan(deriv_tree[:, t]))[0]
+
+            # Generate the backpropagation by looking at pairs of indices
+            for ind_up, ind_down in zip(inds[:-1], inds[1:]):
+                # The row below of up ind (equivalent to above the down ind) is that of the previous timestep
+                ind_now = ind_up + 1
+
+                # Calculate q probabilities
+                q_num = np.exp(market.r*market.deltat)*self.stock_tree[ind_now, t - 1] - self.stock_tree[ind_down, t]
+                q_denom = self.stock_tree[ind_up, t] - self.stock_tree[ind_down, t]
+                q = q_num / q_denom
+
+                # Get derivative up and down values and calculate derivative now value
+                deriv_up = deriv_tree[ind_up, t]
+                deriv_down = deriv_tree[ind_down, t]
+                deriv_now = np.exp(-1*market.r*market.deltat)*(q*deriv_up + (1 - q)*deriv_down)
+
+                deriv_tree[ind_now, t - 1] = deriv_now
+
+        # Save as attributes
+        self.deriv_tree = deriv_tree
+        self.deriv_PV = deriv_tree[self.initial_inds[0], self.initial_inds[1]]
+
+        # Verbose prints
+        if verbose:
+            print('The derivative tree:')
+            print(self.deriv_tree)
+            print(f'and the PV is {self.deriv_PV}')
+
     @staticmethod
-    def EUR_call_option_strike100_payoff(S_T: np.ndarray) -> np.ndarray:
+    def call_option_strike100_payoff(S_t: int | float | np.ndarray) -> int | float | np.ndarray:
         """
         Produces in-built European call option with strike 100 payoffs for stock prices at maturity.
 
         Args:
-            S_T: the last column of the matrix which holds the values of the stock at maturity.
+            S_t: the stock price at time t.
 
         Returns:
             payoff: the payoff of S_T for the option.
         """
-        k = 100  # Strike value
-        payoff = np.where(~np.isnan(S_T), np.where(S_T < k, 0, S_T - k), np.nan)
+        K = 100  # Strike value
+
+        if isinstance(S_t, int) or isinstance(S_t, float):
+            payoff = max(0, S_t - K)
+        else:
+            payoff = np.where(~np.isnan(S_t), np.where(S_t < K, 0, S_t - K), np.nan)
         return payoff
 
 
-def IntRate_delta_rist(deriv: DerivativeBTM, stock: Stock, market: Market) -> None:
+def IntRate_delta_rist(deriv: VanillaOptionBTM, stock: Stock, market: Market) -> None:
     """
     Computes the interest rate delta numerically by shifting the interest rate by 1 b.p. and
     Args:
@@ -461,8 +498,8 @@ def IntRate_delta_rist(deriv: DerivativeBTM, stock: Stock, market: Market) -> No
 
     # Recompute shifted PV for shifted market
     shifted_market = Market(r=market.r + 10**(-4), T=market.T)
-    shifted_deriv = DerivativeBTM(payoff_func=deriv.payoff_func,
-                                  payoff_func_desc=deriv.payoff_func_desc)
+    shifted_deriv = VanillaOptionBTM(payoff_func=deriv.payoff_func,
+                                     payoff_func_desc=deriv.payoff_func_desc)
 
     # Not the most efficient way as hedges and borrows are not required
     shifted_deriv.simulate_price_and_replication(stock=stock, market=shifted_market, verbose=False)
