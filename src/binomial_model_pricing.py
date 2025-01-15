@@ -27,8 +27,8 @@ if __name__ == '__main__':
     market_1 = Market(r=0, T=3)
     market_2 = Market(r=0.01, T=9)
 
-    stock_A = Stock(S_0=100, DeltaS=20, DeltaS_type='abs')
-    stock_B = Stock(S_0=100, DeltaS=1.1, DeltaS_type='rel')
+    stock_A = Stock(S_0=100, step=20, step_type='abs')
+    stock_B = Stock(S_0=100, step=1.1, step_type='rel')
 
     # Option simulations
     option1 = DerivativeBTM(payoff_func=DerivativeBTM.EUR_call_option_strike100_payoff,

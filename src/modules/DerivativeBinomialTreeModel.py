@@ -9,35 +9,35 @@ class Stock:
     are the price of the stock at time zero and the size of movement said stock can take after each timestep. These
     movements are assumed to be symmetric and may be specified as either absolute or relative.
     """
-    def __init__(self, S_0: int | float, DeltaS: int | float, DeltaS_type: str) -> None:
+    def __init__(self, S_0: int | float, step: int | float, step_type: str) -> None:
         """
         Stock constructor.
 
         Args:
             S_0: Starting price of the underlying stock.
-            DeltaS: Absolute or relative symmetric movement of the underlying. Provide a positive or a value greater
-            than 1 for abs and relative as the down movement will be either - DeltaS or 1/DeltaS.
-            DeltaS_type: either abs or rel to specify what DeltaS is.
+            step: Absolute or relative symmetric movement of the underlying. Provide a positive or a value greater
+            than 1 for abs and relative as the down movement will be either - step or 1/step.
+            step_type: either abs or rel to specify what step is.
         """
         # Exceptions for inputs
         if S_0 <= 0:
             raise ValueError(f'S_0 has to be greater than 0. The value input was {S_0=}.')
-        if DeltaS <= 0:
-            raise ValueError(f'DeltaS has to be greater than 0. The value input was {DeltaS=}.')
+        if step <= 0:
+            raise ValueError(f'step has to be greater than 0. The value input was {step=}.')
 
         # Save inputs attributes
         self.S_0 = S_0
-        self.DeltaS = DeltaS
+        self.step = step
 
         # Delta type flag
-        self.DeltaS_abs = False
-        self.DeltaS_rel = False
-        if DeltaS_type == 'abs':
-            self.DeltaS_abs = True
-        elif DeltaS_type == 'rel':
-            self.DeltaS_rel = True
+        self.step_abs = False
+        self.step_rel = False
+        if step_type == 'abs':
+            self.step_abs = True
+        elif step_type == 'rel':
+            self.step_rel = True
         else:
-            raise Exception(f'The DeltaS type provided, {DeltaS_type}, has to be either abs or rel')
+            raise Exception(f'The step type provided, {step_type}, has to be either abs or rel')
 
     def __str__(self) -> str:
         """
@@ -47,10 +47,10 @@ class Stock:
             stock_str: Descriptive string detailing the market.
         """
         stock_str = f'The stock has initial value of {self.S_0} USD'
-        if self.DeltaS_abs:
-            stock_str += f'and the absolute stock movement is +/- {self.DeltaS} USD for every timestep.'
+        if self.step_abs:
+            stock_str += f'and the absolute stock movement is +/- {self.step} USD for every timestep.'
         else:
-            stock_str += f'and the relative stock movement is +/- {self.DeltaS} for every timestep.'
+            stock_str += f'and the relative stock movement is +/- {self.step} for every timestep.'
         return stock_str
 
 
@@ -133,9 +133,9 @@ class DerivativeBTM:
             deriv_PV: present value of the derivative.
         """
         # Exceptions
-        if stock.DeltaS_abs:
+        if stock.step_abs:
             # Check that the stock price can never be negative
-            if market.T >= np.ceil(stock.S_0 / stock.DeltaS):
+            if market.T >= np.ceil(stock.S_0 / stock.step):
                 raise Exception('Reduce the number of timesteps to ensure that the stock cannot have a negative price.')
 
         # Ensures simulation only performed once
@@ -175,45 +175,45 @@ class DerivativeBTM:
                   f'r = {100*r}%\nand a maturity of T = {T}.')
 
     @staticmethod
-    def _calc_up_stock_price(S_now: float, DeltaS: int | float, DeltaS_abs: bool) -> int | float:
+    def _calc_up_stock_price(S_now: float, step: int | float, step_abs: bool) -> int | float:
         """
         Calculates the stock up price for the timestep after S_now.
         Args:
             S_now: The price of the stock now.
-            DeltaS: Stock object which holds the attributes of stock movement.
-            DeltaS_abs: flag which dictates whether movement is absolute (else relative).
+            step: Stock object which holds the attributes of stock movement.
+            step_abs: flag which dictates whether movement is absolute (else relative).
 
         Returns:
             S_up: The price of the stock if it goes up the following timestep.
         """
 
-        if DeltaS_abs:
-            S_up = S_now + DeltaS
+        if step_abs:
+            S_up = S_now + step
             return S_up
 
         else:
-            S_up = S_now*DeltaS
+            S_up = S_now*step
             return S_up
 
     @staticmethod
-    def _calc_down_stock_price(S_now: float, DeltaS: int | float, DeltaS_abs: bool) -> int | float:
+    def _calc_down_stock_price(S_now: float, step: int | float, step_abs: bool) -> int | float:
         """
         Calculates the stock down price for the timestep after S_now.
         Args:
             S_now: The price of the stock now.
-            DeltaS: Stock object which holds the attributes of stock movement.
-            DeltaS_abs: flag which dictates whether movement is absolute (else relative).
+            step: Stock object which holds the attributes of stock movement.
+            step_abs: flag which dictates whether movement is absolute (else relative).
 
         Returns:
             S_down: The price of the stock if it goes down the following timestep.
         """
 
-        if DeltaS_abs:
-            S_down = S_now - DeltaS
+        if step_abs:
+            S_down = S_now - step
             return S_down
 
         else:
-            S_down = S_now*(1/DeltaS)
+            S_down = S_now*(1/step)
             return S_down
 
     def _gen_stock_tree(self, stock: Stock, verbose: bool) -> None:
@@ -241,8 +241,8 @@ class DerivativeBTM:
             for ind_now in inds:
                 S_now = float(stock_tree[ind_now, t - 1])
                 ind_up, ind_down = ind_now - 1, ind_now + 1  # Note up and down refers to stock price move
-                stock_tree[ind_up, t] = self._calc_up_stock_price(S_now, stock.DeltaS, stock.DeltaS_abs)
-                stock_tree[ind_down, t] = self._calc_down_stock_price(S_now, stock.DeltaS, stock.DeltaS_abs)
+                stock_tree[ind_up, t] = self._calc_up_stock_price(S_now, stock.step, stock.step_abs)
+                stock_tree[ind_down, t] = self._calc_down_stock_price(S_now, stock.step, stock.step_abs)
 
         # Save as attributes
         self.stock_tree = stock_tree
