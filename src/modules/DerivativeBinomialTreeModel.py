@@ -4,31 +4,30 @@ import pandas as pd
 from typing import Callable
 
 
-class Stock:
+class Stock:  # TODO Improve step_up and step_down. Maybe change for u and d and rework simulation function
     """
     A class which describes the stock that is related to the derivative that is going to be modelled. The attributes
     are the price of the stock at time zero and the size of movement said stock can take after each timestep. These
     movements are assumed to be symmetric and may be specified as either absolute or relative.
     """
-    def __init__(self, S_0: int | float, step: int | float, step_type: str) -> None:
+    def __init__(self, S_0: int | float, step_up: int | float,  step_down: int | float, step_type: str) -> None:
         """
         Stock constructor.
 
         Args:
             S_0: Starting price of the underlying stock.
-            step: Absolute or relative symmetric movement of the underlying. Provide a positive or a value greater
-            than 1 for abs and relative as the down movement will be either - step or 1/step.
+            step_up: up movement size of the underlying.
+            step_down: down movement size of the underlying.
             step_type: either abs or rel to specify what step is.
         """
         # Exceptions for inputs
         if S_0 <= 0:
             raise ValueError(f'S_0 has to be greater than 0. The value input was {S_0=}.')
-        if step <= 0:
-            raise ValueError(f'step has to be greater than 0. The value input was {step=}.')
 
         # Save inputs attributes
         self.S_0 = S_0
-        self.step = step
+        self.step_up = step_up
+        self.step_down = step_down
 
         # Delta type flag
         self.step_abs = False
@@ -49,9 +48,11 @@ class Stock:
         """
         stock_str = f'The stock has initial value of {self.S_0} USD'
         if self.step_abs:
-            stock_str += f'and the absolute stock movement is +/- {self.step} USD for every timestep.'
+            stock_str += (f'and the absolute stock movement is +{self.step_up} or -{self.step_down} '
+                          f'USD for every timestep.')
         else:
-            stock_str += f'and the relative stock movement is +/- {self.step} for every timestep.'
+            stock_str += (f'and the relative stock movement is {self.step_up} or {self.step_down} '
+                          f'for up and down movements for every timestep.')
         return stock_str
 
 
@@ -136,7 +137,7 @@ class BaseOptionBTM(ABC):
         # Exceptions
         if stock.step_abs:
             # Check that the stock price can never be negative
-            if market.T >= np.ceil(stock.S_0 / stock.step):
+            if market.T >= np.ceil(stock.S_0 / stock.step_down):
                 raise Exception('Reduce the number of timesteps to ensure that the stock cannot have a negative price.')
 
         # Ensures simulation only performed once
@@ -242,8 +243,8 @@ class BaseOptionBTM(ABC):
             for ind_now in inds:
                 S_now = float(stock_tree[ind_now, t - 1])
                 ind_up, ind_down = ind_now - 1, ind_now + 1  # Note up and down refers to stock price move
-                stock_tree[ind_up, t] = self._calc_up_stock_price(S_now, stock.step, stock.step_abs)
-                stock_tree[ind_down, t] = self._calc_down_stock_price(S_now, stock.step, stock.step_abs)
+                stock_tree[ind_up, t] = self._calc_up_stock_price(S_now, stock.step_up, stock.step_abs)
+                stock_tree[ind_down, t] = self._calc_down_stock_price(S_now, stock.step_down, stock.step_abs)
 
         # Save as attributes
         self.stock_tree = stock_tree
@@ -487,6 +488,25 @@ class VanillaOptionBTM(BaseOptionBTM):
             payoff = max(0, S_t - K)
         else:
             payoff = np.where(~np.isnan(S_t), np.where(S_t < K, 0, S_t - K), np.nan)
+        return payoff
+
+    @staticmethod
+    def put_option_strike100_payoff(S_t: int | float | np.ndarray) -> int | float | np.ndarray:
+        """
+        Produces in-built European put option with strike 100 payoffs for stock prices at maturity.
+
+        Args:
+            S_t: the stock price at time t.
+
+        Returns:
+            payoff: the payoff of S_T for the option.
+        """
+        K = 100  # Strike value
+
+        if isinstance(S_t, int) or isinstance(S_t, float):
+            payoff = max(0, K - S_t)
+        else:
+            payoff = np.where(~np.isnan(S_t), np.where(S_t > K, 0, K - S_t), np.nan)
         return payoff
 
 

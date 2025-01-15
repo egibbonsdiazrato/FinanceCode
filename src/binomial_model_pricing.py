@@ -25,32 +25,31 @@ if __name__ == '__main__':
 
     # Initial set up
     market_1 = Market(r=0, T=3)
-    market_2 = Market(r=0.05, T=3)
+    market_2 = Market(r=0.025, T=3)
 
-    stock_A = Stock(S_0=100, step=20, step_type='abs')
-    stock_B = Stock(S_0=100, step=1.2, step_type='rel')
+    stock_A = Stock(S_0=100, step_up=20, step_down=20, step_type='abs')
+    stock_B = Stock(S_0=100, step_up=1.2, step_down=1.25, step_type='rel')
 
-    # Option simulations
+    # No interest call option example
     option1 = VanillaOptionBTM(payoff_func=VanillaOptionBTM.call_option_strike100_payoff,
                                payoff_func_desc='This derivative is a EUR call option with strike 100.')
     option1.simulate_price_and_replication(stock=stock_A, market=market_1, verbose=True)
     option1.generate_filtration_table(['down', 'up', 'down'], market_1.T)
 
+    # No interest binary option example
     option2 = VanillaOptionBTM(payoff_func=binary_option_payoff,
-                               payoff_func_desc='This derivative pays 100 if the stock price at maturity is greater '
-                                                'than \nor equal to 100.')
+                               payoff_func_desc='This EUR derivative pays 100 if the stock price at maturity is '
+                                                'greater than \nor equal to 100.')
     option2.simulate_price_and_replication(stock=stock_B, market=market_1, verbose=True)
     option2.generate_filtration_table(['down', 'up', 'down'], market_1.T)
 
-    option3 = VanillaOptionBTM(payoff_func=VanillaOptionBTM.call_option_strike100_payoff,
-                               payoff_func_desc='This derivative is a EUR call option with strike 100.')
+    # Comparison of PVs of EUR and AME options
+    option3 = VanillaOptionBTM(payoff_func=VanillaOptionBTM.put_option_strike100_payoff,
+                               payoff_func_desc='This derivative is a EUR put option with strike 100.')
     option3.simulate_price_and_replication(stock=stock_B, market=market_2, verbose=True)
-    option3.generate_filtration_table(['up', 'up', 'up'], market_2.T)
     IntRate_delta_rist(option2, stock_B, market_2)  # Compute risk
 
-    option4 = VanillaOptionBTM(payoff_func=VanillaOptionBTM.call_option_strike100_payoff,
-                               payoff_func_desc='This derivative is a EUR call option with strike 100.',
+    option4 = VanillaOptionBTM(payoff_func=VanillaOptionBTM.put_option_strike100_payoff,
+                               payoff_func_desc='This derivative is an AME put option with strike 100.',
                                is_AME=True)
     option4.simulate_price_and_replication(stock=stock_B, market=market_2, verbose=True)
-    option4.generate_filtration_table(['up', 'up', 'up'], market_2.T)
-
