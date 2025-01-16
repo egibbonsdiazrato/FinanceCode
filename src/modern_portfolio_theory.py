@@ -1,17 +1,18 @@
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
 
 
 if __name__ == '__main__':
-    two_asset_example = True
-    multi_asset_example = True
+    two_asset_example = False
+    multi_asset_example = False
+    real_example = True
 
     # TWO-ASSET EXAMPLE
     if two_asset_example:
         # Parameters
         N_days = 500
-        mu_a, sigma_a = 0.045, 0.10
-        mu_b, sigma_b = 0.045, 0.15
+        mu_a, sigma_a = 0.045, 0.05
+        mu_b, sigma_b = 0.045, 0.10
 
         ret_a = np.random.normal(mu_a, sigma_a, N_days)
         ret_b = np.random.normal(mu_b, sigma_b, N_days)
@@ -26,6 +27,7 @@ if __name__ == '__main__':
         vol_portfolio = np.sqrt(np.transpose(weights) @ portfolio_cov @ weights)
 
         # Prints
+        print('TWO-ASSET EXAMPLE')
         print('Covariance matrix: \n', portfolio_cov)
         print('Asset expected returns: \n', expected_ret_assets)
         print(f'Portfolio expected return and volatility: {expected_ret_portfolio} and {vol_portfolio}')
@@ -36,11 +38,11 @@ if __name__ == '__main__':
         # Top subplot
         ax1 = fig1.add_subplot(211)
 
-        ax1.plot(ret_a, label='Asset a')
-        ax1.plot(ret_b, label='Asset b')
+        ax1.plot(100*ret_a, label='Asset a')
+        ax1.plot(100*ret_b, label='Asset b')
 
         ax1.set_xlabel('Time (Days)')
-        ax1.set_ylabel(r'$r$')
+        ax1.set_ylabel(r'$r$ (%)')
         ax1.legend(loc='upper right')
 
         ax1.grid(True, which='both', linewidth=0.5, alpha=0.75)
@@ -48,10 +50,10 @@ if __name__ == '__main__':
         # Bottom subplot
         ax2 = fig1.add_subplot(212)
 
-        ax2.hist(ret_a, edgecolor='k', bins=10, alpha=0.75)
-        ax2.hist(ret_b, edgecolor='k', bins=10, zorder=-1)
+        ax2.hist(100*ret_a, edgecolor='k', bins=10, alpha=0.75)
+        ax2.hist(100*ret_b, edgecolor='k', bins=10, zorder=-1)
 
-        ax2.set_xlabel(r'$r$')
+        ax2.set_xlabel(r'$r$ (%)')
         ax2.set_ylabel('Frequency')
 
         ax2.grid(True, which='both', linewidth=0.5, alpha=0.75)
@@ -87,15 +89,19 @@ if __name__ == '__main__':
         ax1.plot(w_a_arr, vol_portfolio_arr, label='Volatility')
 
         ax1.set_xlabel(r'$w_a$')
+
+        ax1.grid(True, which='both', linewidth=0.5, alpha=0.75)
         ax1.legend(loc='upper right')
 
         # Right subplot
         ax2 = fig2.add_subplot(122)
 
-        ax2.scatter(vol_portfolio_arr, expected_ret_portfolio_arr, s=4)
+        ax2.scatter(vol_portfolio_arr, 100*expected_ret_portfolio_arr, s=4)
 
-        ax2.set_xlabel('Portfolio Volatlity')
-        ax2.set_ylabel('Portfolio Expected Returns')
+        ax2.set_xlabel('Portfolio Volatility')
+        ax2.set_ylabel('Portfolio Expected Returns (%)')
+
+        ax2.grid(True, which='both', linewidth=0.5, alpha=0.75)
 
         plt.show()
 
@@ -147,6 +153,8 @@ if __name__ == '__main__':
 
         ax.set_xlabel('Portfolio Volatility')
         ax.set_ylabel('Portfolio Returns (%)')
+
+        ax.grid(True, which='both', linewidth=0.5, alpha=0.75)
         ax.legend(loc='upper right')
 
         plt.show()

@@ -16,6 +16,7 @@ numpy-financial = "1.0.0"
 pandas = "^2.2.0"
 plotly = "^5.3.1"
 scipy = "^1.15.0"
+yfinance = "0.2.51"
 
 [build-system]
 requires = ["poetry>=1.0.0"]
